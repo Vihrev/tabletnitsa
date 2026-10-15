@@ -59,7 +59,10 @@ h1,h2{font-family:var(--f-display);font-weight:700;margin:0;text-wrap:balance}
 .ring .num small{display:block;font:500 11px var(--f-body);color:var(--muted);text-align:center;margin-top:-2px}
 
 /* week */
-.week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.week{display:flex;gap:6px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;margin-inline:-16px;padding:6px 16px 10px;scroll-padding-inline:16px;overscroll-behavior-x:contain}
+.week::-webkit-scrollbar{display:none}
+.week .day{flex:0 0 calc((100% - 36px) / 7);min-width:44px;scroll-snap-align:start}
+.day.m1 .dw{color:var(--accent);font-weight:700}
 .day{border:0;background:var(--surface);border-radius:14px;padding:8px 0 9px;display:flex;flex-direction:column;align-items:center;gap:3px;box-shadow:var(--shadow)}
 .day .dw{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
 .day .dn{font-weight:600;font-variant-numeric:tabular-nums}
@@ -333,7 +336,8 @@ function setStatus(kind) {
   $('#status').textContent = m[kind] || '';
 }
 
-const weekKeys = () => { const out = []; const d = new Date(); d.setDate(d.getDate() - 6); for (let i = 0; i < 7; i++) { out.push(dkey(d)); d.setDate(d.getDate() + 1); } return out; };
+// carousel range: at least 5 weeks back, further if history or the selected day goes back further
+const stripKeys = () => { const d = new Date(); d.setDate(d.getDate() - 34); let start = dkey(d); const f = firstUse(); if (f && f < start) start = f; if (S.sel < start) start = S.sel; const out = []; const c = fromKey(start), t = today(); while (dkey(c) <= t) { out.push(dkey(c)); c.setDate(c.getDate() + 1); } return out; };
 const dayDoc = k => S.days[k] || { taken: {}, extra: [] };
 const active = () => S.meds.filter(m => !m.archived);
 const medById = id => S.meds.find(m => m.id === id);
@@ -341,7 +345,7 @@ const scheduled = () => { const out = []; active().forEach(m => (m.times || []).
 const countFor = k => { const sch = scheduled(); const d = dayDoc(k); const done = sch.filter(s => d.taken && d.taken[s.k]).length; return { done, total: sch.length }; };
 
 function selectDay(k) {
-  S.sel = k;
+  S.sel = k; S.scrollSel = true;
   if (unsubDay) unsubDay();
   unsubDay = Store.watch('day-' + k, v => { S.days[k] = v || { taken: {}, extra: [] }; render(); });
   render();
@@ -367,16 +371,22 @@ function render() {
   $('#ringVal').style.strokeDashoffset = 213.6 * (1 - (total ? done / total : 0));
 
   // week
-  const wk = $('#week'); wk.textContent = '';
-  weekKeys().forEach(k => {
+  const wk = $('#week'), keepX = wk.scrollLeft, hadItems = wk.children.length > 0; wk.textContent = '';
+  stripKeys().forEach(k => {
     const d = fromKey(k), c = countFor(k);
     const b = el('button', 'day'); b.type = 'button'; b.setAttribute('aria-pressed', k === sel);
     b.setAttribute('aria-label', `${d.getDate()} ${MONTHS[d.getMonth()]}: ${c.done} из ${c.total}`);
-    b.append(el('span', 'dw', k === t ? 'сег' : DOW[d.getDay()]), el('span', 'dn', d.getDate()));
+    if (d.getDate() === 1 && k !== t) b.classList.add('m1');
+    b.append(el('span', 'dw', k === t ? 'сег' : d.getDate() === 1 ? MONTHS[d.getMonth()].slice(0, 3) : DOW[d.getDay()]), el('span', 'dn', d.getDate()));
     const bar = el('span', 'bar'), fill = el('i'); fill.style.width = (c.total ? 100 * c.done / c.total : 0) + '%'; bar.append(fill); b.append(bar);
     b.onclick = () => selectDay(k);
     wk.append(b);
   });
+  const selEl = wk.querySelector('[aria-pressed="true"]'), selX = selEl ? selEl.offsetLeft - wk.offsetLeft : 0;
+  const selVisible = selEl && selX >= keepX && selX + selEl.offsetWidth <= keepX + wk.clientWidth;
+  if (selEl && (!hadItems || (S.scrollSel && !selVisible))) wk.scrollLeft = Math.max(0, selX + selEl.offsetWidth + 16 - wk.clientWidth);
+  else wk.scrollLeft = keepX;
+  S.scrollSel = false;
 
   // blister
   const list = $('#list'); list.textContent = '';
@@ -543,6 +553,7 @@ function renderHist() {
 $('#histBtn').onclick = () => { loadAllDays(); const d = fromKey(S.sel); hMonth = new Date(d.getFullYear(), d.getMonth(), 1); renderHist(); $('#histDlg').showModal(); };
 $('#mPrev').onclick = () => { hMonth = new Date(hMonth.getFullYear(), hMonth.getMonth() - 1, 1); renderHist(); };
 $('#mNext').onclick = () => { hMonth = new Date(hMonth.getFullYear(), hMonth.getMonth() + 1, 1); renderHist(); };
+$('#week').addEventListener('wheel', e => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { e.preventDefault(); $('#week').scrollBy({ left: e.deltaY }); } }, { passive: false });
 $('#histClose').onclick = () => $('#histDlg').close();
 
 /* ---------- backup ---------- */
@@ -559,7 +570,7 @@ $('#importFile').onchange = async e => {
     if (j.app !== 'tabletnitsa' || !j.data) throw 0;
     Object.entries(j.data).forEach(([k, v]) => Store.save(k, v));
     S.days = {};
-    weekKeys().forEach(k => { S.days[k] = Store.lsGet('day-' + k) || { taken: {}, extra: [] }; });
+    loadAllDays();
     selectDay(S.sel); setStatus('imported');
   } catch { setStatus('badfile'); }
 };
@@ -571,7 +582,7 @@ render();
   setStatus(Store.mode);
   Store.watch('meds', v => { S.meds = (v && v.items) ? clone(v).items : []; S.loaded = true; render(); });
   if (Store.mode === 'local') S.loaded = true;
-  await Promise.all(weekKeys().map(async k => { if (!S.days[k]) S.days[k] = (await Store.get('day-' + k)) || { taken: {}, extra: [] }; }));
+  loadAllDays();
   selectDay(S.sel);
 })();
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
