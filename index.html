@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f3f6f4">
+<title>Таблетница</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Unbounded:wght@500;700&display=swap">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Таблетница">
+<style>
+/* Layout: one narrow phone column — day header with progress ring, week strip, blister of doses grouped by time, course list below */
+:root{
+  --bg:#f3f6f4; --surface:#ffffff; --sunk:#e8eeea; --line:#d6e0da;
+  --fg:#17221d; --muted:#5d6e66; --accent:#0f6b55; --accent-fg:#ffffff;
+  --warn:#b4541a; --warn-bg:#fbeee4;
+  --c-mint:#9fdcc4; --c-rose:#f4b3c2; --c-sun:#f5d77e; --c-sky:#a9cdf3; --c-lilac:#cdb8f2; --c-peach:#f7c09a;
+  --shadow:0 1px 2px rgba(15,60,45,.08),0 4px 14px rgba(15,60,45,.06);
+  --f-display:"Unbounded","Onest",system-ui,sans-serif;
+  --f-body:"Onest",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --r:18px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1513; --surface:#18211e; --sunk:#121a17; --line:#2a3632;
+  --fg:#e7efeb; --muted:#93a59d; --accent:#5fd0ac; --accent-fg:#06231a;
+  --warn:#f0a774; --warn-bg:#3a2518;
+  --c-mint:#3f8c72; --c-rose:#a65a6c; --c-sun:#a88a33; --c-sky:#4c7cab; --c-lilac:#7a64a8; --c-peach:#a8694a;
+  --shadow:0 1px 2px rgba(0,0,0,.4); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1513; --surface:#18211e; --sunk:#121a17; --line:#2a3632;
+  --fg:#e7efeb; --muted:#93a59d; --accent:#5fd0ac; --accent-fg:#06231a;
+  --warn:#f0a774; --warn-bg:#3a2518;
+  --c-mint:#3f8c72; --c-rose:#a65a6c; --c-sun:#a88a33; --c-sky:#4c7cab; --c-lilac:#7a64a8; --c-peach:#a8694a;
+  --shadow:0 1px 2px rgba(0,0,0,.4); color-scheme:dark}
+
+*{box-sizing:border-box}
+html,body{background:var(--bg)}
+body{color:var(--fg);font:16px/1.45 var(--f-body);-webkit-tap-highlight-color:transparent;padding-inline:16px;padding-block:12px 40px}
+.wrap{max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h1,h2{font-family:var(--f-display);font-weight:700;margin:0;text-wrap:balance}
+.label{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+
+/* header */
+.top{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-top:8px}
+.top h1{font-size:26px;line-height:1.15}
+.top .sub{color:var(--muted);font-size:15px;margin-top:4px}
+.ring{position:relative;width:76px;height:76px;flex:none}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring .track{fill:none;stroke:var(--sunk);stroke-width:8}
+.ring .val{fill:none;stroke:var(--accent);stroke-width:8;stroke-linecap:round;transition:stroke-dashoffset .5s ease}
+.ring .num{position:absolute;inset:0;display:grid;place-items:center;font:700 17px var(--f-display);font-variant-numeric:tabular-nums}
+.ring .num small{display:block;font:500 11px var(--f-body);color:var(--muted);text-align:center;margin-top:-2px}
+
+/* week */
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.day{border:0;background:var(--surface);border-radius:14px;padding:8px 0 9px;display:flex;flex-direction:column;align-items:center;gap:3px;box-shadow:var(--shadow)}
+.day .dw{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.day .dn{font-weight:600;font-variant-numeric:tabular-nums}
+.day .bar{width:60%;height:4px;border-radius:2px;background:var(--sunk);overflow:hidden}
+.day .bar i{display:block;height:100%;background:var(--accent);border-radius:2px}
+.day[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.day[aria-pressed="true"] .dw{color:inherit;opacity:.7}
+.day[aria-pressed="true"] .bar{background:color-mix(in srgb,var(--bg) 25%,transparent)}
+.day[aria-pressed="true"] .bar i{background:var(--bg)}
+
+/* blister */
+.slot{display:flex;flex-direction:column;gap:10px}
+.slot-h{display:flex;align-items:baseline;gap:10px}
+.slot-h .t{font:700 20px var(--f-display);font-variant-numeric:tabular-nums}
+.slot-h .s{font-size:14px;color:var(--muted)}
+.blister{background:var(--sunk);border-radius:var(--r);padding:8px;display:flex;flex-direction:column;gap:8px}
+.dose{border:0;width:100%;text-align:left;display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:14px;background:var(--surface);box-shadow:var(--shadow);min-height:64px;transition:transform .12s ease}
+.dose:active{transform:scale(.98)}
+.capsule{flex:none;width:46px;height:22px;border-radius:11px;position:relative;border:2px solid var(--pc);background:transparent;transition:background .25s ease}
+.capsule::after{content:"";position:absolute;left:50%;top:-2px;bottom:-2px;width:2px;background:var(--pc)}
+.dose .txt{flex:1;min-width:0}
+.dose .nm{font-weight:600;line-height:1.25;overflow-wrap:anywhere}
+.dose .meta{font-size:14px;color:var(--muted)}
+.dose .chk{flex:none;width:30px;height:30px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;transition:all .2s ease}
+.dose .chk svg{width:16px;height:16px;opacity:0;stroke:var(--accent-fg);stroke-width:3;fill:none}
+.dose.on .capsule{background:var(--pc)}
+.dose.on .chk{background:var(--accent);border-color:var(--accent)}
+.dose.on .chk svg{opacity:1}
+.dose.on .nm{color:var(--muted)}
+.dose.miss .meta{color:var(--warn)}
+.dose.miss{box-shadow:inset 0 0 0 1.5px var(--warn-bg),var(--shadow)}
+
+.prn-row{display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:14px;background:var(--surface);box-shadow:var(--shadow)}
+.prn-row .txt{flex:1;min-width:0}
+.btn{border:0;border-radius:999px;padding:10px 16px;font-weight:600;background:var(--sunk);white-space:nowrap}
+.btn.pri{background:var(--accent);color:var(--accent-fg)}
+.btn.ghost{background:transparent;border:1.5px solid var(--line)}
+.btn.danger{background:var(--warn-bg);color:var(--warn)}
+.log{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 6px 4px 10px;background:var(--sunk);font-size:14px;font-variant-numeric:tabular-nums}
+.chip button{border:0;background:transparent;width:24px;height:24px;border-radius:50%;color:var(--muted);font-size:16px;line-height:1}
+
+.empty{background:var(--surface);border-radius:var(--r);padding:24px 20px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:10px;align-items:flex-start}
+.empty h2{font-size:20px}
+.empty p{margin:0;color:var(--muted)}
+
+/* course */
+.course{display:flex;flex-direction:column;gap:10px}
+.course-h{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.course-h h2{font-size:18px}
+.med{border:0;width:100%;text-align:left;display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:var(--surface);box-shadow:var(--shadow)}
+.med .dot{flex:none;width:14px;height:14px;border-radius:50%;background:var(--pc)}
+.med .txt{flex:1;min-width:0}
+.med .meta{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+.med .arr{color:var(--muted)}
+
+.foot{display:flex;flex-direction:column;gap:8px;align-items:flex-start;font-size:13px;color:var(--muted)}
+.linkbtn{border:0;background:none;padding:0;color:var(--accent);font-weight:600;font-size:14px}
+
+/* dialog */
+dialog{border:0;padding:0;border-radius:22px;background:var(--surface);color:var(--fg);width:min(480px,calc(100vw - 24px));max-height:calc(100dvh - 40px);box-shadow:0 20px 60px rgba(0,0,0,.25)}
+dialog::backdrop{background:rgba(10,20,16,.45)}
+.dlg{padding:20px;display:flex;flex-direction:column;gap:16px}
+.dlg h2{font-size:20px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label,.field .lab{font-size:14px;font-weight:600}
+input[type=text],input[type=time]{font:inherit;color:var(--fg);background:var(--sunk);border:1.5px solid transparent;border-radius:12px;padding:12px 14px;width:100%;min-height:48px}
+input[type=text]:focus,input[type=time]:focus{border-color:var(--accent);outline:none}
+.times{display:flex;flex-direction:column;gap:8px}
+.trow{display:flex;gap:8px;align-items:center}
+.trow input{flex:1}
+.trow button{flex:none;width:44px;height:44px;border:0;border-radius:12px;background:var(--sunk);font-size:20px;color:var(--muted)}
+.hint{font-size:13px;color:var(--muted);margin:0}
+.swatches{display:flex;gap:10px;flex-wrap:wrap}
+.swatches label{position:relative}
+.swatches input{position:absolute;opacity:0;inset:0}
+.swatches span{display:block;width:36px;height:36px;border-radius:50%;background:var(--pc);border:3px solid var(--surface);box-shadow:0 0 0 1.5px var(--line)}
+.swatches input:checked+span{box-shadow:0 0 0 2.5px var(--fg)}
+.swatches input:focus-visible+span{outline:2px solid var(--accent);outline-offset:3px}
+.dlg-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between}
+.dlg-actions .r{display:flex;gap:10px;margin-left:auto}
+.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+[hidden]{display:none!important}
+.foot .row{display:flex;gap:16px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="label" id="dow">Сегодня</div>
+      <h1 id="dateTitle">…</h1>
+      <div class="sub" id="daySub">&nbsp;</div>
+    </div>
+    <div class="ring" aria-hidden="true">
+      <svg viewBox="0 0 80 80"><circle class="track" cx="40" cy="40" r="34"/><circle class="val" id="ringVal" cx="40" cy="40" r="34" stroke-dasharray="213.6" stroke-dashoffset="213.6"/></svg>
+      <div class="num"><div><span id="ringNum">0/0</span><small>принято</small></div></div>
+    </div>
+  </header>
+
+  <nav class="week" id="week" aria-label="Последние 7 дней"></nav>
+
+  <main id="list" style="display:flex;flex-direction:column;gap:22px"></main>
+
+  <section class="course">
+    <div class="course-h">
+      <h2>Мои лекарства</h2>
+      <button class="btn pri" id="addMed" type="button">+ Добавить</button>
+    </div>
+    <div id="meds" style="display:flex;flex-direction:column;gap:8px"></div>
+  </section>
+
+  <footer class="foot">
+    <span id="status">Загрузка…</span>
+    <div class="row">
+      <button class="linkbtn" id="exportBtn" type="button">Сохранить копию</button>
+      <button class="linkbtn" id="importBtn" type="button">Восстановить из копии</button>
+      <button class="linkbtn" id="helpBtn" type="button">Как поставить на iPhone</button>
+    </div>
+    <input type="file" id="importFile" accept=".json,application/json" hidden>
+  </footer>
+</div>
+
+<dialog id="medDlg">
+  <form class="dlg" id="medForm" novalidate>
+    <h2 id="medDlgTitle">Новое лекарство</h2>
+    <div class="field">
+      <label for="fName">Название</label>
+      <input type="text" id="fName" placeholder="Например, Витамин D" autocomplete="off" required>
+    </div>
+    <div class="field">
+      <label for="fDose">Доза</label>
+      <input type="text" id="fDose" placeholder="1 таб. · 2000 МЕ" autocomplete="off">
+    </div>
+    <div class="field">
+      <span class="lab">Время приёма</span>
+      <div class="times" id="fTimes"></div>
+      <button class="btn ghost" type="button" id="fAddTime" style="align-self:flex-start">+ Ещё время</button>
+      <p class="hint">Без времени лекарство попадёт в раздел «По необходимости».</p>
+    </div>
+    <div class="field">
+      <span class="lab">Цвет</span>
+      <div class="swatches" id="fColors"></div>
+    </div>
+    <div class="dlg-actions">
+      <button class="btn danger" type="button" id="fDel" hidden>Удалить</button>
+      <div class="r">
+        <button class="btn" type="button" id="fCancel">Отмена</button>
+        <button class="btn pri" type="submit">Сохранить</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="helpDlg">
+  <div class="dlg">
+    <h2>На экран «Домой»</h2>
+    <ol class="steps">
+      <li>Откройте адрес этой страницы в <b>Safari</b> на iPhone.</li>
+      <li>Нажмите кнопку «Поделиться» (квадрат со стрелкой вверх).</li>
+      <li>Выберите «На экран „Домой“» и нажмите «Добавить».</li>
+      <li>Дальше открывайте приложение только с иконки на экране «Домой».</li>
+    </ol>
+    <p class="hint">Все отметки хранятся только на этом телефоне. Время от времени нажимайте «Сохранить копию», чтобы не потерять историю.</p>
+    <div class="dlg-actions"><div class="r"><button class="btn pri" type="button" id="helpClose">Понятно</button></div></div>
+  </div>
+</dialog>
+
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+const pad = n => String(n).padStart(2, '0');
+const dkey = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const fromKey = k => { const [y,m,d] = k.split('-').map(Number); return new Date(y, m-1, d); };
+const nowHM = () => { const d = new Date(); return pad(d.getHours()) + ':' + pad(d.getMinutes()); };
+const MONTHS = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+const DOW = ['вс','пн','вт','ср','чт','пт','сб'];
+const DOWFULL = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
+const COLORS = ['mint','rose','sun','sky','lilac','peach'];
+const uid = () => Math.random().toString(36).slice(2, 10);
+const clone = o => JSON.parse(JSON.stringify(o || {}));
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+
+/* ---------- storage: account (db) with browser fallback ---------- */
+const Store = {
+  mode: 'local', listeners: {}, ok: true,
+  async init() { try { localStorage.setItem('pills:_t', '1'); localStorage.removeItem('pills:_t'); } catch { this.ok = false; } },
+  lsGet(k) { try { const v = localStorage.getItem('pills:' + k); return v ? JSON.parse(v) : null; } catch { return null; } },
+  lsSet(k, v) { try { localStorage.setItem('pills:' + k, JSON.stringify(v)); } catch { setStatus('error'); } },
+  watch(k, cb) {
+    (this.listeners[k] ||= new Set()).add(cb); cb(this.lsGet(k));
+    return () => this.listeners[k].delete(cb);
+  },
+  async get(k) { return this.lsGet(k); },
+  save(k, v) { this.lsSet(k, v); (this.listeners[k] || []).forEach(cb => cb(v)); return Promise.resolve(); },
+  dump() {
+    const out = {};
+    try { for (let i = 0; i < localStorage.length; i++) { const key = localStorage.key(i); if (key.startsWith('pills:')) out[key.slice(6)] = JSON.parse(localStorage.getItem(key)); } } catch {}
+    return out;
+  }
+};
+
+/* ---------- state ---------- */
+const today = () => dkey(new Date());
+const S = { meds: [], days: {}, sel: today(), loaded: false };
+let unsubDay = null;
+
+function setStatus(kind) {
+  const m = {
+    local: Store.ok ? 'Данные хранятся только на этом устройстве.' : 'Браузер запретил сохранение: отметки пропадут после закрытия. Откройте страницу не в приватном режиме.',
+    error: 'Не удалось сохранить: память браузера недоступна.',
+    imported: 'Копия восстановлена.',
+    badfile: 'Это не файл копии Таблетницы.'
+  };
+  $('#status').textContent = m[kind] || '';
+}
+
+const weekKeys = () => { const out = []; const d = new Date(); d.setDate(d.getDate() - 6); for (let i = 0; i < 7; i++) { out.push(dkey(d)); d.setDate(d.getDate() + 1); } return out; };
+const dayDoc = k => S.days[k] || { taken: {}, extra: [] };
+const scheduled = () => { const out = []; S.meds.forEach(m => (m.times || []).forEach(t => out.push({ med: m, t, k: m.id + '@' + t }))); return out; };
+const countFor = k => { const sch = scheduled(); const d = dayDoc(k); const done = sch.filter(s => d.taken && d.taken[s.k]).length; return { done, total: sch.length }; };
+
+function selectDay(k) {
+  S.sel = k;
+  if (unsubDay) unsubDay();
+  unsubDay = Store.watch('day-' + k, v => { S.days[k] = v || { taken: {}, extra: [] }; render(); });
+  render();
+}
+
+function saveDay(k, mutate) {
+  const d = clone(dayDoc(k)); d.taken ||= {}; d.extra ||= [];
+  mutate(d); S.days[k] = d; render();
+  Store.save('day-' + k, d);
+}
+function saveMeds(list) { S.meds = list; render(); Store.save('meds', { items: list }); }
+
+/* ---------- render ---------- */
+function render() {
+  const sel = S.sel, t = today(), date = fromKey(sel);
+  const isToday = sel === t, isPast = sel < t;
+  $('#dow').textContent = isToday ? 'Сегодня' : DOWFULL[date.getDay()];
+  $('#dateTitle').textContent = `${date.getDate()} ${MONTHS[date.getMonth()]}`;
+  const { done, total } = countFor(sel);
+  const extras = (dayDoc(sel).extra || []).length;
+  $('#daySub').textContent = total ? (done === total ? 'Все приёмы отмечены' : `Осталось ${total - done}`) + (extras ? ` · ещё ${extras} разово` : '') : (extras ? `${extras} разово` : 'Нет запланированных приёмов');
+  $('#ringNum').textContent = `${done}/${total}`;
+  $('#ringVal').style.strokeDashoffset = 213.6 * (1 - (total ? done / total : 0));
+
+  // week
+  const wk = $('#week'); wk.textContent = '';
+  weekKeys().forEach(k => {
+    const d = fromKey(k), c = countFor(k);
+    const b = el('button', 'day'); b.type = 'button'; b.setAttribute('aria-pressed', k === sel);
+    b.setAttribute('aria-label', `${d.getDate()} ${MONTHS[d.getMonth()]}: ${c.done} из ${c.total}`);
+    b.append(el('span', 'dw', k === t ? 'сег' : DOW[d.getDay()]), el('span', 'dn', d.getDate()));
+    const bar = el('span', 'bar'), fill = el('i'); fill.style.width = (c.total ? 100 * c.done / c.total : 0) + '%'; bar.append(fill); b.append(bar);
+    b.onclick = () => selectDay(k);
+    wk.append(b);
+  });
+
+  // blister
+  const list = $('#list'); list.textContent = '';
+  if (!S.loaded) { list.append(el('p', 'hint', 'Загружаю ваши лекарства…')); renderMeds(); return; }
+  if (!S.meds.length) {
+    const e = el('div', 'empty');
+    e.append(el('h2', null, 'Пока пусто'), el('p', null, 'Добавьте лекарство и время приёма. Каждый день здесь появится блистер: нажали на таблетку — приём отмечен.'));
+    const b = el('button', 'btn pri', 'Добавить первое лекарство'); b.type = 'button'; b.onclick = () => openMed(); e.append(b);
+    list.append(e); renderMeds(); return;
+  }
+  const day = dayDoc(sel), nm = nowHM();
+  const groups = {};
+  scheduled().forEach(s => (groups[s.t] ||= []).push(s));
+  Object.keys(groups).sort().forEach(time => {
+    const items = groups[time];
+    const sec = el('section', 'slot');
+    const h = el('div', 'slot-h'); const doneN = items.filter(s => day.taken[s.k]).length;
+    h.append(el('span', 't', time), el('span', 's', `${doneN} из ${items.length}`)); sec.append(h);
+    const bl = el('div', 'blister');
+    items.forEach(s => {
+      const at = day.taken && day.taken[s.k];
+      const late = !at && (isPast || (isToday && time < nm));
+      const b = el('button', 'dose' + (at ? ' on' : '') + (late ? ' miss' : '')); b.type = 'button';
+      b.style.setProperty('--pc', `var(--c-${s.med.color || 'mint'})`);
+      b.setAttribute('aria-pressed', !!at);
+      const cap = el('span', 'capsule'); const tx = el('span', 'txt');
+      tx.append(el('div', 'nm', s.med.name), el('div', 'meta', at ? `Принято в ${at}` + (s.med.dose ? ` · ${s.med.dose}` : '') : (late ? 'Не отмечено' : (s.med.dose || 'Нажмите, когда примете'))));
+      const chk = el('span', 'chk'); chk.innerHTML = '<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg>';
+      b.append(cap, tx, chk);
+      b.onclick = () => saveDay(sel, d => { if (d.taken[s.k]) delete d.taken[s.k]; else d.taken[s.k] = isToday ? nowHM() : time; });
+      bl.append(b);
+    });
+    sec.append(bl); list.append(sec);
+  });
+
+  // as needed + one-off log
+  const prn = S.meds.filter(m => !(m.times || []).length);
+  if (prn.length || (day.extra || []).length) {
+    const sec = el('section', 'slot');
+    const h = el('div', 'slot-h'); h.append(el('span', 't', 'По необходимости')); sec.append(h);
+    const bl = el('div', 'blister');
+    prn.forEach(m => {
+      const row = el('div', 'prn-row'); row.style.setProperty('--pc', `var(--c-${m.color || 'mint'})`);
+      const cap = el('span', 'capsule'); cap.style.background = 'var(--pc)';
+      const tx = el('div', 'txt'); tx.append(el('div', 'nm', m.name));
+      const mine = (day.extra || []).filter(x => x.medId === m.id);
+      tx.append(el('div', 'meta', mine.length ? `${mine.length} раз сегодня` : (m.dose || 'Ещё не принимали')));
+      if (mine.length) {
+        const lg = el('div', 'log');
+        mine.forEach(x => { const c = el('span', 'chip', x.at); const del = el('button', null, '×'); del.type = 'button'; del.setAttribute('aria-label', `Убрать приём в ${x.at}`); del.onclick = () => saveDay(sel, d => { d.extra = d.extra.filter(y => y.id !== x.id); }); c.append(del); lg.append(c); });
+        tx.append(lg);
+      }
+      const add = el('button', 'btn pri', 'Принял'); add.type = 'button';
+      add.onclick = () => saveDay(sel, d => { d.extra.push({ id: uid(), medId: m.id, at: isToday ? nowHM() : '12:00' }); d.extra.sort((a, b) => a.at < b.at ? -1 : 1); });
+      row.append(cap, tx, add); bl.append(row);
+    });
+    sec.append(bl); list.append(sec);
+  }
+  renderMeds();
+}
+
+function renderMeds() {
+  const box = $('#meds'); box.textContent = '';
+  if (!S.meds.length) { box.append(el('p', 'hint', S.loaded ? 'Список пуст.' : '')); return; }
+  S.meds.forEach(m => {
+    const b = el('button', 'med'); b.type = 'button'; b.style.setProperty('--pc', `var(--c-${m.color || 'mint'})`);
+    const tx = el('span', 'txt'); tx.append(el('div', 'nm', m.name));
+    tx.append(el('div', 'meta', [(m.times || []).length ? m.times.join(', ') : 'по необходимости', m.dose].filter(Boolean).join(' · ')));
+    b.append(el('span', 'dot'), tx, el('span', 'arr', '›'));
+    b.onclick = () => openMed(m);
+    box.append(b);
+  });
+}
+
+/* ---------- med form ---------- */
+let editing = null, delArmed = false;
+function timeRow(v) {
+  const r = el('div', 'trow'); const i = document.createElement('input'); i.type = 'time'; i.value = v || '09:00'; i.id = 'ft-' + uid();
+  const x = el('button', null, '×'); x.type = 'button'; x.setAttribute('aria-label', 'Убрать время'); x.onclick = () => r.remove();
+  r.append(i, x); return r;
+}
+function openMed(m) {
+  editing = m || null; delArmed = false;
+  $('#medDlgTitle').textContent = m ? 'Изменить' : 'Новое лекарство';
+  $('#fName').value = m ? m.name : ''; $('#fDose').value = m ? (m.dose || '') : '';
+  const ts = $('#fTimes'); ts.textContent = '';
+  (m ? (m.times || []) : ['09:00']).forEach(t => ts.append(timeRow(t)));
+  const cs = $('#fColors'); cs.textContent = '';
+  const cur = m ? m.color : COLORS[S.meds.length % COLORS.length];
+  COLORS.forEach(c => { const l = el('label'); l.style.setProperty('--pc', `var(--c-${c})`); const i = document.createElement('input'); i.type = 'radio'; i.name = 'fColor'; i.value = c; i.id = 'fc-' + c; i.checked = c === cur; i.setAttribute('aria-label', c); l.append(i, el('span')); cs.append(l); });
+  const del = $('#fDel'); del.hidden = !m; del.textContent = 'Удалить';
+  $('#medDlg').showModal();
+}
+$('#fAddTime').onclick = () => $('#fTimes').append(timeRow(''));
+$('#fCancel').onclick = () => $('#medDlg').close();
+$('#fDel').onclick = () => {
+  if (!delArmed) { delArmed = true; $('#fDel').textContent = 'Точно удалить?'; return; }
+  saveMeds(S.meds.filter(x => x.id !== editing.id)); $('#medDlg').close();
+};
+$('#medForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const name = $('#fName').value.trim(); if (!name) { $('#fName').focus(); $('#fName').placeholder = 'Введите название'; return; }
+  const times = [...new Set([...document.querySelectorAll('#fTimes input')].map(i => i.value).filter(Boolean))].sort();
+  const color = (document.querySelector('input[name=fColor]:checked') || {}).value || 'mint';
+  const item = { id: editing ? editing.id : uid(), name, dose: $('#fDose').value.trim(), times, color };
+  saveMeds(editing ? S.meds.map(x => x.id === item.id ? item : x) : [...S.meds, item]);
+  $('#medDlg').close();
+});
+$('#addMed').onclick = () => openMed();
+$('#helpBtn').onclick = () => $('#helpDlg').showModal();
+$('#helpClose').onclick = () => $('#helpDlg').close();
+
+/* ---------- backup ---------- */
+$('#exportBtn').onclick = () => {
+  const blob = new Blob([JSON.stringify({ app: 'tabletnitsa', v: 1, saved: new Date().toISOString(), data: Store.dump() }, null, 1)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `tabletnitsa-${today()}.json`;
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+};
+$('#importBtn').onclick = () => $('#importFile').click();
+$('#importFile').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try {
+    const j = JSON.parse(await f.text());
+    if (j.app !== 'tabletnitsa' || !j.data) throw 0;
+    Object.entries(j.data).forEach(([k, v]) => Store.save(k, v));
+    S.days = {};
+    weekKeys().forEach(k => { S.days[k] = Store.lsGet('day-' + k) || { taken: {}, extra: [] }; });
+    selectDay(S.sel); setStatus('imported');
+  } catch { setStatus('badfile'); }
+};
+
+/* ---------- boot ---------- */
+render();
+(async () => {
+  await Store.init();
+  setStatus(Store.mode);
+  Store.watch('meds', v => { S.meds = (v && v.items) ? clone(v).items : []; S.loaded = true; render(); });
+  if (Store.mode === 'local') S.loaded = true;
+  await Promise.all(weekKeys().map(async k => { if (!S.days[k]) S.days[k] = (await Store.get('day-' + k)) || { taken: {}, extra: [] }; }));
+  selectDay(S.sel);
+})();
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+// midnight rollover + refresh "missed" marks
+let lastToday = today();
+setInterval(() => { const t = today(); if (t !== lastToday) { const wasToday = S.sel === lastToday; lastToday = t; if (wasToday) selectDay(t); else render(); } else render(); }, 60000);
+})();
+</script>
+</body>
+</html>
