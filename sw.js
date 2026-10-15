@@ -1,5 +1,5 @@
 // Offline cache: the app opens from the Home Screen even without internet
-const CACHE = 'tabletnitsa-v8';
+const CACHE = 'tabletnitsa-v9';
 const CORE = ['./', './index.html'];
 
 self.addEventListener('install', e => {
