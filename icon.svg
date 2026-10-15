@@ -1,39 +1,43 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#1a9a7a"/>
-      <stop offset="1" stop-color="#0b5443"/>
+      <stop offset="0" stop-color="#fbfaff"/>
+      <stop offset="1" stop-color="#ece5ff"/>
     </linearGradient>
-    <radialGradient id="glow" cx="0.3" cy="0.22" r="0.75">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.22"/>
-      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    <radialGradient id="wash1" cx="0.15" cy="0.1" r="0.6">
+      <stop offset="0" stop-color="#b48cff" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#b48cff" stop-opacity="0"/>
     </radialGradient>
-    <linearGradient id="white" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ffffff"/>
-      <stop offset="1" stop-color="#e3efe9"/>
+    <radialGradient id="wash2" cx="0.95" cy="0.95" r="0.6">
+      <stop offset="0" stop-color="#9b6cff" stop-opacity="0.40"/>
+      <stop offset="1" stop-color="#9b6cff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="purple" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#9a72ff"/>
+      <stop offset="1" stop-color="#6c3fdc"/>
     </linearGradient>
-    <linearGradient id="sun" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ffdf85"/>
-      <stop offset="1" stop-color="#f5b94a"/>
+    <linearGradient id="green" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5fe07f"/>
+      <stop offset="1" stop-color="#25b04a"/>
     </linearGradient>
-    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur stdDeviation="14"/>
+    <filter id="shadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="18"/>
     </filter>
     <clipPath id="cap"><rect x="-150" y="-62" width="300" height="124" rx="62"/></clipPath>
   </defs>
 
   <rect width="512" height="512" fill="url(#bg)"/>
-  <rect width="512" height="512" fill="url(#glow)"/>
+  <rect width="512" height="512" fill="url(#wash1)"/>
+  <rect width="512" height="512" fill="url(#wash2)"/>
 
   <g transform="translate(256 256) rotate(-40)">
-    <!-- soft teal shadow -->
-    <rect x="-150" y="-50" width="300" height="124" rx="62" fill="#063a2e" opacity="0.45" filter="url(#shadow)" transform="translate(0 22)"/>
+    <!-- soft purple-tinted shadow -->
+    <rect x="-150" y="-50" width="300" height="124" rx="62" fill="#7c4ce6" opacity="0.35" filter="url(#shadow)" transform="translate(0 26)"/>
     <g clip-path="url(#cap)">
-      <rect x="-150" y="-62" width="150" height="124" fill="url(#white)"/>
-      <rect x="0" y="-62" width="150" height="124" fill="url(#sun)"/>
-      <rect x="-3" y="-62" width="6" height="124" fill="#0b5443" opacity="0.12"/>
-      <!-- gloss -->
-      <rect x="-118" y="-42" width="236" height="22" rx="11" fill="#ffffff" opacity="0.55"/>
+      <rect x="-150" y="-62" width="150" height="124" fill="url(#purple)"/>
+      <rect x="0" y="-62" width="150" height="124" fill="url(#green)"/>
+      <rect x="-3" y="-62" width="6" height="124" fill="#ffffff" opacity="0.35"/>
+      <rect x="-118" y="-42" width="236" height="20" rx="10" fill="#ffffff" opacity="0.35"/>
     </g>
   </g>
 </svg>
