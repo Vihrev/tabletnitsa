@@ -148,6 +148,34 @@ input[type=text]:focus,input[type=time]:focus{border-color:var(--accent);outline
 body{margin:0}
 [hidden]{display:none!important}
 .foot .row{display:flex;gap:16px;flex-wrap:wrap}
+
+/* history */
+.histbtn{border:0;width:100%;display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-radius:14px;background:var(--surface);box-shadow:var(--shadow);font-weight:600}
+.histbtn span:last-child{color:var(--muted);font-size:20px;line-height:1}
+#histDlg{max-height:calc(100dvh - 24px);overflow:auto}
+.mnav{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.mnav h2{font-size:18px}
+.mnav button{border:0;width:44px;height:44px;border-radius:12px;background:var(--sunk);font-size:22px;line-height:1}
+.mnav button:disabled{opacity:.35;cursor:default}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.cal .wd{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-align:center;padding-bottom:2px}
+.cal .c{border:0;aspect-ratio:1;max-width:100%;border-radius:10px;background:var(--sunk);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-variant-numeric:tabular-nums;font-weight:600;font-size:15px;position:relative}
+.cal .c small{font-size:10px;font-weight:500;opacity:.8}
+.cal .c.p1{background:color-mix(in srgb,var(--accent) 22%,var(--sunk))}
+.cal .c.p2{background:color-mix(in srgb,var(--accent) 50%,var(--sunk))}
+.cal .c.p3{background:var(--accent);color:var(--accent-fg)}
+.cal .c.today{box-shadow:inset 0 0 0 2px var(--fg)}
+.cal .c:disabled{background:transparent;color:var(--muted);opacity:.45;cursor:default}
+.cal .c.pad{visibility:hidden}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);align-items:center}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:4px;vertical-align:-2px;margin-right:4px}
+.hlist{display:flex;flex-direction:column;gap:8px}
+.hday{border:0;width:100%;text-align:left;background:var(--sunk);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.hday .hh{display:flex;justify-content:space-between;gap:8px;font-weight:600}
+.hday .hh span:last-child{color:var(--muted);font-weight:500;font-size:14px;font-variant-numeric:tabular-nums}
+.hday .log .chip{background:var(--surface);padding:4px 10px}
+.hday .log .chip b{font-weight:600;font-variant-numeric:tabular-nums}
+.hday .miss{font-size:13px;color:var(--warn)}
 </style>
 </head>
 <body>
@@ -165,7 +193,10 @@ body{margin:0}
     </div>
   </header>
 
-  <nav class="week" id="week" aria-label="Последние 7 дней"></nav>
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <nav class="week" id="week" aria-label="Последние 7 дней"></nav>
+    <button class="histbtn" id="histBtn" type="button"><span>История и календарь</span><span aria-hidden="true">›</span></button>
+  </div>
 
   <main id="list" style="display:flex;flex-direction:column;gap:22px"></main>
 
@@ -217,6 +248,26 @@ body{margin:0}
       </div>
     </div>
   </form>
+</dialog>
+
+<dialog id="histDlg">
+  <div class="dlg">
+    <div class="mnav">
+      <button type="button" id="mPrev" aria-label="Предыдущий месяц">‹</button>
+      <h2 id="mTitle">Октябрь 2026</h2>
+      <button type="button" id="mNext" aria-label="Следующий месяц">›</button>
+    </div>
+    <div class="cal" id="cal"></div>
+    <div class="legend">
+      <span><i style="background:var(--sunk)"></i>ничего</span>
+      <span><i style="background:color-mix(in srgb,var(--accent) 22%,var(--sunk))"></i>меньше половины</span>
+      <span><i style="background:color-mix(in srgb,var(--accent) 50%,var(--sunk))"></i>больше половины</span>
+      <span><i style="background:var(--accent)"></i>всё</span>
+    </div>
+    <div class="label" id="hListTitle">Принято за месяц</div>
+    <div class="hlist" id="hList"></div>
+    <div class="dlg-actions"><div class="r"><button class="btn pri" type="button" id="histClose">Закрыть</button></div></div>
+  </div>
 </dialog>
 
 <dialog id="helpDlg">
@@ -284,7 +335,9 @@ function setStatus(kind) {
 
 const weekKeys = () => { const out = []; const d = new Date(); d.setDate(d.getDate() - 6); for (let i = 0; i < 7; i++) { out.push(dkey(d)); d.setDate(d.getDate() + 1); } return out; };
 const dayDoc = k => S.days[k] || { taken: {}, extra: [] };
-const scheduled = () => { const out = []; S.meds.forEach(m => (m.times || []).forEach(t => out.push({ med: m, t, k: m.id + '@' + t }))); return out; };
+const active = () => S.meds.filter(m => !m.archived);
+const medById = id => S.meds.find(m => m.id === id);
+const scheduled = () => { const out = []; active().forEach(m => (m.times || []).forEach(t => out.push({ med: m, t, k: m.id + '@' + t }))); return out; };
 const countFor = k => { const sch = scheduled(); const d = dayDoc(k); const done = sch.filter(s => d.taken && d.taken[s.k]).length; return { done, total: sch.length }; };
 
 function selectDay(k) {
@@ -328,7 +381,7 @@ function render() {
   // blister
   const list = $('#list'); list.textContent = '';
   if (!S.loaded) { list.append(el('p', 'hint', 'Загружаю ваши лекарства…')); renderMeds(); return; }
-  if (!S.meds.length) {
+  if (!active().length) {
     const e = el('div', 'empty');
     e.append(el('h2', null, 'Пока пусто'), el('p', null, 'Добавьте лекарство и время приёма. Каждый день здесь появится блистер: нажали на таблетку — приём отмечен.'));
     const b = el('button', 'btn pri', 'Добавить первое лекарство'); b.type = 'button'; b.onclick = () => openMed(); e.append(b);
@@ -360,7 +413,7 @@ function render() {
   });
 
   // as needed + one-off log
-  const prn = S.meds.filter(m => !(m.times || []).length);
+  const prn = active().filter(m => !(m.times || []).length);
   if (prn.length || (day.extra || []).length) {
     const sec = el('section', 'slot');
     const h = el('div', 'slot-h'); h.append(el('span', 't', 'По необходимости')); sec.append(h);
@@ -387,8 +440,8 @@ function render() {
 
 function renderMeds() {
   const box = $('#meds'); box.textContent = '';
-  if (!S.meds.length) { box.append(el('p', 'hint', S.loaded ? 'Список пуст.' : '')); return; }
-  S.meds.forEach(m => {
+  if (!active().length) { box.append(el('p', 'hint', S.loaded ? 'Список пуст.' : '')); return; }
+  active().forEach(m => {
     const b = el('button', 'med'); b.type = 'button'; b.style.setProperty('--pc', `var(--c-${m.color || 'mint'})`);
     const tx = el('span', 'txt'); tx.append(el('div', 'nm', m.name));
     tx.append(el('div', 'meta', [(m.times || []).length ? m.times.join(', ') : 'по необходимости', m.dose].filter(Boolean).join(' · ')));
@@ -412,7 +465,7 @@ function openMed(m) {
   const ts = $('#fTimes'); ts.textContent = '';
   (m ? (m.times || []) : ['09:00']).forEach(t => ts.append(timeRow(t)));
   const cs = $('#fColors'); cs.textContent = '';
-  const cur = m ? m.color : COLORS[S.meds.length % COLORS.length];
+  const cur = m ? m.color : COLORS[active().length % COLORS.length];
   COLORS.forEach(c => { const l = el('label'); l.style.setProperty('--pc', `var(--c-${c})`); const i = document.createElement('input'); i.type = 'radio'; i.name = 'fColor'; i.value = c; i.id = 'fc-' + c; i.checked = c === cur; i.setAttribute('aria-label', c); l.append(i, el('span')); cs.append(l); });
   const del = $('#fDel'); del.hidden = !m; del.textContent = 'Удалить';
   $('#medDlg').showModal();
@@ -421,7 +474,7 @@ $('#fAddTime').onclick = () => $('#fTimes').append(timeRow(''));
 $('#fCancel').onclick = () => $('#medDlg').close();
 $('#fDel').onclick = () => {
   if (!delArmed) { delArmed = true; $('#fDel').textContent = 'Точно удалить?'; return; }
-  saveMeds(S.meds.filter(x => x.id !== editing.id)); $('#medDlg').close();
+  saveMeds(S.meds.map(x => x.id === editing.id ? { ...x, archived: true } : x)); $('#medDlg').close();
 };
 $('#medForm').addEventListener('submit', e => {
   e.preventDefault();
@@ -435,6 +488,62 @@ $('#medForm').addEventListener('submit', e => {
 $('#addMed').onclick = () => openMed();
 $('#helpBtn').onclick = () => $('#helpDlg').showModal();
 $('#helpClose').onclick = () => $('#helpDlg').close();
+
+/* ---------- history ---------- */
+const MONTHS_NOM = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+let hMonth = null;
+function loadAllDays() {
+  try { for (let i = 0; i < localStorage.length; i++) { const key = localStorage.key(i); if (key.startsWith('pills:day-')) { const k = key.slice(10); S.days[k] = Store.lsGet('day-' + k) || { taken: {}, extra: [] }; } } } catch {}
+}
+function recordsFor(k) {
+  const d = dayDoc(k), out = [];
+  const nm = id => { const m = medById(id); return m ? m.name : 'Удалённое лекарство'; };
+  Object.entries(d.taken || {}).forEach(([key, at]) => out.push({ at, name: nm(key.split('@')[0]) }));
+  (d.extra || []).forEach(x => out.push({ at: x.at, name: nm(x.medId) }));
+  return out.sort((a, b) => a.at < b.at ? -1 : 1);
+}
+const firstUse = () => Object.keys(S.days).filter(k => recordsFor(k).length).sort()[0] || null;
+const openDay = k => { $('#histDlg').close(); selectDay(k); window.scrollTo(0, 0); };
+function renderHist() {
+  const y = hMonth.getFullYear(), mo = hMonth.getMonth(), t = today(), first = firstUse();
+  $('#mTitle').textContent = `${MONTHS_NOM[mo]} ${y}`;
+  $('#mNext').disabled = dkey(new Date(y, mo + 1, 1)) > t;
+  $('#mPrev').disabled = !first || dkey(new Date(y, mo, 1)) <= first.slice(0, 8) + '01';
+  const cal = $('#cal'); cal.textContent = '';
+  ['пн','вт','ср','чт','пт','сб','вс'].forEach(w => cal.append(el('div', 'wd', w)));
+  for (let i = 0, pad = (new Date(y, mo, 1).getDay() + 6) % 7; i < pad; i++) cal.append(el('span', 'c pad'));
+  const listDays = [];
+  for (let d = 1, n = new Date(y, mo + 1, 0).getDate(); d <= n; d++) {
+    const k = dkey(new Date(y, mo, d));
+    const b = el('button', 'c'); b.type = 'button'; b.append(el('span', null, d));
+    if (k === t) b.classList.add('today');
+    if (k > t) { b.disabled = true; cal.append(b); continue; }
+    const c = countFor(k), recs = recordsFor(k), tracked = first && k >= first;
+    if (tracked && c.total) { const p = c.done / c.total; if (p > 0) b.classList.add(p >= 1 ? 'p3' : p >= .5 ? 'p2' : 'p1'); b.append(el('small', null, `${c.done}/${c.total}`)); }
+    else if (recs.length) { b.classList.add('p1'); b.append(el('small', null, recs.length)); }
+    b.setAttribute('aria-label', `${d} ${MONTHS[mo]}: принято ${recs.length}`);
+    b.onclick = () => openDay(k);
+    cal.append(b);
+    if (recs.length || (tracked && c.total)) listDays.push(k);
+  }
+  const hl = $('#hList'); hl.textContent = '';
+  if (!listDays.length) hl.append(el('p', 'hint', 'В этом месяце записей нет.'));
+  listDays.reverse().forEach(k => {
+    const dt = fromKey(k), c = countFor(k), recs = recordsFor(k), day = dayDoc(k);
+    const b = el('button', 'hday'); b.type = 'button';
+    const hh = el('div', 'hh'); hh.append(el('span', null, `${k === t ? 'Сегодня' : dt.getDate() + ' ' + MONTHS[dt.getMonth()]}, ${DOW[dt.getDay()]}`), el('span', null, c.total ? `${c.done} из ${c.total}` : `${recs.length} приём.`));
+    b.append(hh);
+    if (recs.length) { const lg = el('div', 'log'); recs.forEach(r => { const ch = el('span', 'chip'); ch.append(el('b', null, r.at), document.createTextNode(' ' + r.name)); lg.append(ch); }); b.append(lg); }
+    const missed = scheduled().filter(s => !(day.taken && day.taken[s.k]));
+    if (missed.length && k < t) b.append(el('div', 'miss', 'Не отмечено: ' + missed.map(s => `${s.med.name} (${s.t})`).join(', ')));
+    b.onclick = () => openDay(k);
+    hl.append(b);
+  });
+}
+$('#histBtn').onclick = () => { loadAllDays(); const d = fromKey(S.sel); hMonth = new Date(d.getFullYear(), d.getMonth(), 1); renderHist(); $('#histDlg').showModal(); };
+$('#mPrev').onclick = () => { hMonth = new Date(hMonth.getFullYear(), hMonth.getMonth() - 1, 1); renderHist(); };
+$('#mNext').onclick = () => { hMonth = new Date(hMonth.getFullYear(), hMonth.getMonth() + 1, 1); renderHist(); };
+$('#histClose').onclick = () => $('#histDlg').close();
 
 /* ---------- backup ---------- */
 $('#exportBtn').onclick = () => {
